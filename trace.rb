@@ -16,17 +16,39 @@ class Tracer
 
     m.each do |meth|
       key = String.respond_to?(:random) ? String.random : "#{rand}"
-      impl = "#{meth}_#{key}".to_sym
-      cls.send(:alias_method, impl, meth)
+      orig_method = cls.instance_method(meth)
       cls.send(:define_method, meth) do |*args, &blk|
         pref = ' ' * (level * 2)
-        puts "#{pref}#{is_class ? "#{self}<Class>" : self.class.name}.#{meth}(#{args.map(&:inspect).join(', ')})"
+        puts "#{pref}#{self.is_a?(Class) ? "#{self}<Class>" : self.class.name}.#{meth}(#{args.map(&:inspect).join(', ')})"
         level += 1
-        ret = self.send(impl, *args, &blk)
+        ret = orig_method.bind(self).call(*args, &blk)
         puts "#{pref}=> #{ret.inspect}"
         level -= 1
         ret
       end
     end
   end
+end
+
+if $0 == __FILE__
+  class Example
+    def self.example
+      puts "(ran self.example)"
+    end
+
+    def example
+      puts "(ran example)"
+    end
+
+    def nonexample
+      puts "(ran nonexample)"
+    end
+  end
+  Tracer.trace_class(Example)
+  Tracer.trace(Example, :example)
+
+  Example.example
+  ex = Example.new
+  ex.example
+  ex.nonexample
 end
